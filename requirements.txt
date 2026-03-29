@@ -1,0 +1,27 @@
+# ============================================================
+#  requirements.txt — Hệ thống đánh giá độ tương đồng ngữ nghĩa
+#  Python 3.10.11
+# ============================================================
+
+# ── Xử lý dữ liệu
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.1
+openpyxl==3.1.2          # đọc/ghi file .xlsx
+
+# ── Deep Learning (PyTorch + Transformers)
+torch==2.3.1
+transformers==4.41.2
+sentencepiece==0.2.0      # PhoBERT tokenizer
+tokenizers==0.19.1
+
+# ── Tách từ tiếng Việt
+vncorenlp==1.0.3          # RDRSegmenter — tách từ chính thức cho PhoBERT
+underthesea==6.8.4        # fallback nếu VnCoreNLP chưa cài
+
+# ── ELMo (tùy chọn — chỉ cần nếu dùng mô hình ELMo)
+# allennlp==2.10.1
+# allennlp-models==2.10.1
+
+# ── Giao diện (đã có sẵn trong Python stdlib — không cần cài)
+# tkinter  →  tích hợp sẵn trong bản cài Python tiêu chuẩn

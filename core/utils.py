@@ -5,16 +5,11 @@ tính Cosine Similarity và quy đổi điểm.
 """
 
 import re
+import math
 import numpy as np
 
 
 def extract_target_word(context: str):
-    """
-    Trích xuất từ mục tiêu được bọc trong thẻ <b>...</b>.
-    Trả về (từ_mục_tiêu, câu_đã_bỏ_thẻ).
-    Ví dụ:
-        "Hệ thống <b>mạng</b> nội bộ..." → ("mạng", "Hệ thống mạng nội bộ...")
-    """
     match = re.search(r'<b>(.*?)</b>', context, re.IGNORECASE)
     if not match:
         return None, context
@@ -24,21 +19,10 @@ def extract_target_word(context: str):
 
 
 def normalize_text(text: str) -> str:
-    """
-    Chuẩn hóa văn bản tiếng Việt cơ bản:
-      - Loại bỏ khoảng trắng thừa
-    Không chuyển thường để giữ nguyên tính nhất quán với
-    dữ liệu huấn luyện của PhoBERT.
-    """
     return re.sub(r'\s+', ' ', text.strip())
 
 
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    """
-    Tính Cosine Similarity giữa hai vector đặc trưng.
-    Công thức: cos(u, v) = (u · v) / (||u|| × ||v||)
-    Trả về 0.0 nếu một trong hai vector là vector không.
-    """
     n1 = np.linalg.norm(vec1)
     n2 = np.linalg.norm(vec2)
     if n1 == 0 or n2 == 0:
@@ -48,9 +32,39 @@ def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
 
 def scale_cos_to_10(cos_sim: float) -> float:
     """
-    Quy đổi Cosine Similarity về thang 0–10 theo công thức tuyến tính:
-        score_model = cos(u, v) × 10
-    Vector BERT/PhoBERT thực tế nằm trong [0, 1] do hidden state
-    không âm sau hàm kích hoạt (mục 2.5.5 tài liệu nghiên cứu).
+    Quy đổi Cosine Similarity [-1, 1] về thang 0–10.
+    Mặc định sử dụng công thức biến đổi tuyến tính để bảo toàn hệ số tương quan.
     """
-    return round(float(cos_sim) * 10, 4)
+    if cos_sim is None:
+        return 0.0
+    
+    cos_val = float(cos_sim)
+
+    # ─────────────────────────────────────────────────────────
+    # 1. CÔNG THỨC HIỆN TẠI: Biến đổi tuyến tính (Giữ nguyên Pearson)
+    # ─────────────────────────────────────────────────────────
+    #scaled_val = ((cos_val + 1.0) / 2.0) * 10.0
+
+    # ─────────────────────────────────────────────────────────
+    # 2. CÁC CÔNG THỨC KHÁC (Bỏ comment '#' ở dòng 'scaled_val = ...' để dùng)
+    # ─────────────────────────────────────────────────────────
+    
+    # [A] Công thức: cos * 10 (Xử lý âm bằng cách cắt về 0)
+    # Làm mất tính tuyến tính ở vùng âm, nhưng logic với con người (0 điểm = không liên quan)
+    scaled_val = max(0.0, cos_val) * 10.0
+
+    # [B] Công thức: Min-Max Scaling
+    # Công thức tổng quát đưa dải [min_val, max_val] về [0, 10]. 
+    # Nếu min=-1, max=1 thì nó chính là công thức tuyến tính (1) ở trên.
+    # min_val, max_val = -1.0, 1.0
+    # scaled_val = ((cos_val - min_val) / (max_val - min_val)) * 10.0
+
+    # [C] Công thức: Sigmoid (Phi tuyến tính)
+    # Ép dữ liệu thành hình chữ S, giúp giảm nhiễu ở các điểm cực trị.
+    # scaled_val = (1 / (1 + math.exp(-cos_val))) * 10.0
+
+    # ─────────────────────────────────────────────────────────
+    
+    # Đảm bảo điểm luôn nằm gọn trong dải [0, 10]
+    scaled_val = max(0.0, min(10.0, scaled_val))
+    return round(scaled_val, 4)

@@ -1,10 +1,8 @@
 """
 core/models.py
 Định nghĩa các lớp mô hình học sâu dùng để trích xuất vector ngữ cảnh.
-
-Tối ưu tốc độ so với phiên bản gốc:
-  - Cache model toàn cục: mỗi variant chỉ tải 1 lần dù gọi nhiều lần
-  - target_word tokenize được xử lý chuẩn xác để đảm bảo không sai lệch độ chính xác.
+Cập nhật: Chỉ áp dụng trung bình 4 lớp cuối cho PhoBERT-Large để sửa lỗi phân bố điểm.
+PhoBERT-Base và mBERT vẫn giữ nguyên cách lấy lớp cuối cùng.
 """
 
 import numpy as np
@@ -76,14 +74,21 @@ class PhoBERTModel(BaseModel):
             try:
                 from transformers import AutoTokenizer, AutoModel
                 self.tokenizer = AutoTokenizer.from_pretrained(key)
-                self.model     = AutoModel.from_pretrained(key)
+                
+                # CHỈ SỬA LARGE: Kích hoạt output_hidden_states cho bản Large
+                is_large = "large" in key.lower()
+                self.model = AutoModel.from_pretrained(
+                    key, 
+                    output_hidden_states=is_large
+                )
+                
                 self.model.eval()
                 _model_cache[key] = (self.tokenizer, self.model)
                 log_fn(f"[PhoBERT] Tải xong: {key}")
             except Exception as e:
                 raise RuntimeError(f"Không thể tải PhoBERT ({key}): {e}")
 
-        # Khởi tạo singleton segmenter và log ngay khi load model
+        # Khởi tạo singleton segmenter
         get_segmenter(log_fn=log_fn)
 
     def get_vector(self, sentence: str, target_word: str) -> np.ndarray:
@@ -97,21 +102,31 @@ class PhoBERTModel(BaseModel):
             segmented, return_tensors="pt",
             truncation=True, max_length=256, padding=True
         )
+        
         with torch.no_grad():
             outputs = self.model(**inputs)
-        hidden = outputs.last_hidden_state[0]  # [seq_len, hidden_size]
+            
+            # ─── PHÂN TÁCH LOGIC CHO BASE VÀ LARGE ───
+            if "large" in self.variant.lower():
+                # CẢI THIỆN CHO LARGE: Lấy trung bình 4 lớp cuối
+                all_layers = outputs.hidden_states # List của 25 tensors
+                last_4_layers = torch.stack(all_layers[-4:]) # Lấy 4 lớp cuối
+                # Tính trung bình các lớp, sau đó lấy câu đầu tiên [0]
+                hidden = last_4_layers.mean(dim=0)[0] 
+            else:
+                # GIỮ NGUYÊN CHO BASE: Lấy duy nhất lớp cuối cùng
+                hidden = outputs.last_hidden_state[0]
 
         # Bước 3: tìm span của từ mục tiêu
         if target_word:
             all_tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-            # BẮT BUỘC gọi segment_text để tạo dấu '_' cho từ mục tiêu
             target_segmented = segment_text(target_word.lower())
             target_tokens = self.tokenizer.tokenize(target_segmented)
             
             span = _find_target_span(all_tokens, target_tokens)
             if span is not None:
                 start, k = span
-                # v(w, C) = (1/k) × Σ h_i  (công thức 2.5.3)
+                # v(w, C) = (1/k) × Σ h_i
                 return hidden[start: start + k].mean(dim=0).numpy()
 
         # Fallback: mean pooling bỏ [CLS] và [SEP]
@@ -125,7 +140,7 @@ class PhoBERTModel(BaseModel):
 class BERTMultilingualModel(BaseModel):
     """
     BERT Multilingual Cased — bert-base-multilingual-cased.
-    Không cần tách từ tiếng Việt (dùng WordPiece trực tiếp).
+    GIỮ NGUYÊN: Lấy lớp cuối cùng (last_hidden_state).
     """
 
     VARIANT = "bert-base-multilingual-cased"
@@ -145,6 +160,7 @@ class BERTMultilingualModel(BaseModel):
         try:
             from transformers import AutoTokenizer, AutoModel
             self.tokenizer = AutoTokenizer.from_pretrained(key)
+            # mBERT giữ nguyên, không cần output_hidden_states
             self.model     = AutoModel.from_pretrained(key)
             self.model.eval()
             _model_cache[key] = (self.tokenizer, self.model)
@@ -160,11 +176,12 @@ class BERTMultilingualModel(BaseModel):
         )
         with torch.no_grad():
             outputs = self.model(**inputs)
+        
+        # Mặc định lấy lớp cuối cùng
         hidden = outputs.last_hidden_state[0]
 
         if target_word:
             all_tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-            # BỎ .lower() để WordPiece Cased hoạt động chính xác
             target_tokens = self.tokenizer.tokenize(target_word)
             
             span = _find_target_span(all_tokens, target_tokens)
@@ -187,7 +204,7 @@ MODEL_REGISTRY = {
 
 
 def create_model(model_name: str) -> BaseModel:
-    """Tạo instance mô hình theo tên. Raise ValueError nếu không hợp lệ."""
+    """Tạo instance mô hình theo tên."""
     if model_name not in MODEL_REGISTRY:
         raise ValueError(
             f"Mô hình '{model_name}' không hợp lệ. "

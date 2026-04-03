@@ -55,10 +55,6 @@ def _find_target_span(all_tokens: list, target_tokens: list):
 # ══════════════════════════════════════════════
 
 class PhoBERTModel(BaseModel):
-    """
-    Mô hình PhoBERT — vinai/phobert-base hoặc vinai/phobert-large.
-    """
-
     def __init__(self, variant: str = "vinai/phobert-base"):
         self.variant   = variant
         self.tokenizer = None
@@ -105,17 +101,7 @@ class PhoBERTModel(BaseModel):
         
         with torch.no_grad():
             outputs = self.model(**inputs)
-            
-            # ─── PHÂN TÁCH LOGIC CHO BASE VÀ LARGE ───
-            if "large" in self.variant.lower():
-                # CẢI THIỆN CHO LARGE: Lấy trung bình 4 lớp cuối
-                all_layers = outputs.hidden_states # List của 25 tensors
-                last_4_layers = torch.stack(all_layers[-4:]) # Lấy 4 lớp cuối
-                # Tính trung bình các lớp, sau đó lấy câu đầu tiên [0]
-                hidden = last_4_layers.mean(dim=0)[0] 
-            else:
-                # GIỮ NGUYÊN CHO BASE: Lấy duy nhất lớp cuối cùng
-                hidden = outputs.last_hidden_state[0]
+            hidden = outputs.last_hidden_state[0]
 
         # Bước 3: tìm span của từ mục tiêu
         if target_word:
@@ -267,7 +253,7 @@ class XLMRoBERTaModel(BaseModel):
 
 MODEL_REGISTRY = {
     "PhoBERT-Base"      : lambda: PhoBERTModel("vinai/phobert-base"),
-    "PhoBERT-Large"     : lambda: PhoBERTModel("vinai/phobert-large"),
+    # "PhoBERT-Large"     : lambda: PhoBERTModel("vinai/phobert-large"),
     "BERT-Multilingual" : BERTMultilingualModel,
     "XLMRoBERTa-Base" :lambda: XLMRoBERTaModel("xlm-roberta-base"),
 }

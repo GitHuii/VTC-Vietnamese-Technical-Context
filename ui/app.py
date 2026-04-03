@@ -75,7 +75,7 @@ MODEL_COLORS = {
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Semantic Similarity Evaluator")
+        self.title("Đo lường độ tương tự ngữ nghĩa thuật ngữ kỹ thuật theo ngữ cảnh")
         self.geometry("1380x820")
         self.minsize(1100, 680)
         self.resizable(True, True)
@@ -199,7 +199,7 @@ class App(tk.Tk):
 
         tk.Label(hdr, text="◈", bg=C_NAVY, fg=C_BLUE,
                  font=("Segoe UI", 16)).pack(side="left", padx=(16, 4))
-        tk.Label(hdr, text="Semantic Similarity Evaluator",
+        tk.Label(hdr, text="Đo lường độ tương tự ngữ nghĩa thuật ngữ kỹ thuật theo ngữ cảnh",
                  bg=C_NAVY, fg=C_WHITE,
                  font=("Segoe UI Semibold", 13)).pack(side="left")
         tk.Label(hdr, text="NLP · PhoBERT · BERT · ELMo",

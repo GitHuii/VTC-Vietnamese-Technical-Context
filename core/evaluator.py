@@ -65,6 +65,17 @@ def evaluate_dataset(
     result = df.copy()
     result["raw_cosine"]  = raw_cosines   # cosine thô để debug/phân tích
     result["model_score"] = model_scores
+    valid = [(i, s) for i, s in enumerate(model_scores) if s is not None]
+    if valid:
+        indices, scores = zip(*valid)
+        s_min = min(scores)
+        s_max = max(scores)
+        if s_max > s_min:  # tránh chia 0
+            scaled = [None] * len(model_scores)
+            for i, s in valid:
+                scaled[i] = round((s - s_min) / (s_max - s_min) * 10, 4)
+            result["model_score"] = scaled
+
     return result
 
 

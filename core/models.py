@@ -190,7 +190,76 @@ class BERTMultilingualModel(BaseModel):
                 return hidden[start: start + k].mean(dim=0).numpy()
 
         return hidden[1:-1].mean(dim=0).numpy()
+class XLMRoBERTaModel(BaseModel):
+    """
+    XLM-RoBERTa — facebook/xlm-roberta-base hoặc xlm-roberta-large.
+    Không cần tách từ (SentencePiece tokenizer xử lý trực tiếp văn bản thô).
+    """
 
+    def __init__(self, variant: str = "xlm-roberta-base"):
+        self.variant   = variant
+        self.tokenizer = None
+        self.model     = None
+
+    def load(self, log_fn=print):
+        key = self.variant
+        if key in _model_cache:
+            self.tokenizer, self.model = _model_cache[key]
+            log_fn(f"[XLM-R] Dùng lại model đã tải: {key}")
+            return
+
+        log_fn(f"[XLM-R] Đang tải {key} ...")
+        try:
+            from transformers import AutoTokenizer, AutoModel
+            self.tokenizer = AutoTokenizer.from_pretrained(key)
+            self.model = AutoModel.from_pretrained(key, output_hidden_states=True)
+            self.model.eval()
+            _model_cache[key] = (self.tokenizer, self.model)
+            log_fn(f"[XLM-R] Tải xong: {key}")
+        except Exception as e:
+            raise RuntimeError(f"Không thể tải XLM-RoBERTa ({key}): {e}")
+
+    def get_vector(self, sentence: str, target_word: str) -> np.ndarray:
+        import torch
+
+        inputs = self.tokenizer(
+            sentence, return_tensors="pt",
+            truncation=True, max_length=256, padding=True
+        )
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+
+        all_layers = outputs.hidden_states
+        hidden = torch.stack(all_layers[-4:]).mean(dim=0)[0]
+
+        if target_word:
+    # Tìm vị trí target_word trong câu gốc bằng char offset
+            encoding = self.tokenizer(
+                sentence, return_tensors="pt",
+                truncation=True, max_length=256,
+                padding=True, return_offsets_mapping=True
+            )
+            offsets = encoding["offset_mapping"][0].tolist()  # [(start, end), ...]
+            
+            # Tìm vị trí char của target_word trong câu
+            target_lower   = target_word.lower()
+            sentence_lower = sentence.lower()
+            char_start = sentence_lower.find(target_lower)
+            
+            if char_start != -1:
+                char_end = char_start + len(target_lower)
+                
+                # Tìm token nào overlap với [char_start, char_end]
+                token_indices = [
+                    i for i, (s, e) in enumerate(offsets)
+                    if s < char_end and e > char_start and e > 0
+                ]
+                
+                if token_indices:
+                    hidden = torch.stack(outputs.hidden_states[-4:]).mean(dim=0)[0]
+                    return hidden[token_indices].mean(dim=0).numpy()
+
+        return hidden[1:-1].mean(dim=0).numpy()
 
 # ══════════════════════════════════════════════
 #  FACTORY
@@ -200,6 +269,7 @@ MODEL_REGISTRY = {
     "PhoBERT-Base"      : lambda: PhoBERTModel("vinai/phobert-base"),
     "PhoBERT-Large"     : lambda: PhoBERTModel("vinai/phobert-large"),
     "BERT-Multilingual" : BERTMultilingualModel,
+    "XLMRoBERTa-Base" :lambda: XLMRoBERTaModel("xlm-roberta-base"),
 }
 
 

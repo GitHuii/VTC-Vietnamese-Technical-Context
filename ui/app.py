@@ -202,9 +202,9 @@ class App(tk.Tk):
         tk.Label(hdr, text="Đo lường độ tương tự ngữ nghĩa thuật ngữ kỹ thuật theo ngữ cảnh",
                  bg=C_NAVY, fg=C_WHITE,
                  font=("Segoe UI Semibold", 13)).pack(side="left")
-        tk.Label(hdr, text="NLP · PhoBERT · BERT · ELMo",
-                 bg=C_NAVY, fg="#6b8ec4",
-                 font=("Segoe UI", 9)).pack(side="left", padx=12)
+        # tk.Label(hdr, text="NLP · PhoBERT · BERT · ELMo",
+        #          bg=C_NAVY, fg="#6b8ec4",
+                #  font=("Segoe UI", 9)).pack(side="left", padx=12)
         tk.Label(hdr,
                  text="Nguyễn Viết Huy & Hoàng Thanh Chiến  ·  ĐHKT-KT Công Nghiệp",
                  bg=C_NAVY, fg="#6b8ec4",
@@ -529,7 +529,7 @@ class App(tk.Tk):
                  text="Chọn file kết quả đã đánh giá cho từng mô hình (ít nhất 1 file)",
                  bg=C_BG, fg=C_TEXT2, font=FONT_UI).pack(pady=12)
 
-        paths = {m: tk.StringVar() for m in ["PhoBERT-Base", "PhoBERT-Large", "mBERT"]}
+        paths = {m: tk.StringVar() for m in ["PhoBERT", "mBERT","XMLRoBERTa"]}
 
         def _browse(model_name):
             p = filedialog.askopenfilename(
@@ -539,7 +539,7 @@ class App(tk.Tk):
             if p:
                 paths[model_name].set(p)
 
-        for model in ["PhoBERT-Base", "PhoBERT-Large", "mBERT"]:
+        for model in ["PhoBERT","mBERT","XMLRoBERTa"]:
             row = tk.Frame(dlg, bg=C_BG)
             row.pack(fill="x", padx=20, pady=4)
             fg, bg = MODEL_COLORS.get(model, (C_BLUE, C_BLUE_L))

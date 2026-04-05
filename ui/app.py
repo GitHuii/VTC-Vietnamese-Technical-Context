@@ -39,6 +39,8 @@ C_AMBER_L   = "#fef3c7"
 C_RED       = "#dc2626"
 C_PURPLE    = "#7c3aed"
 C_PURPLE_L  = "#ede9fe"
+C_ROSE      = "#be123c"
+C_ROSE_L    = "#ffe4e6"
 
 C_TEXT      = "#1e2736"
 C_TEXT2     = "#4b5870"
@@ -50,7 +52,7 @@ FONT_BOLD   = ("Segoe UI Semibold", 9)
 FONT_TITLE  = ("Segoe UI Semibold", 12)
 FONT_HEADER = ("Segoe UI Semibold", 10)
 FONT_MONO   = ("Consolas", 9)
-FONT_NUM    = ("Segoe UI Semibold", 20)
+FONT_NUM    = ("Segoe UI Semibold", 16) # Giảm size xíu để vừa 9 ô
 FONT_CAP    = ("Segoe UI", 8)
 
 SCORE_COLS    = [f"r{i}" for i in range(1, 11)]
@@ -64,7 +66,9 @@ ALL_COLUMNS   = (
 MODEL_COLORS = {
     "PhoBERT-Base":  (C_BLUE,   C_BLUE_L),
     "PhoBERT-Large": (C_PURPLE, C_PURPLE_L),
+    "PhoBERT":       (C_BLUE,   C_BLUE_L),
     "mBERT":         (C_GREEN,  C_GREEN_L),
+    "XMLRoBERTa":    (C_ROSE,   C_ROSE_L),
     "ELMo":          (C_AMBER,  C_AMBER_L),
 }
 
@@ -76,15 +80,15 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Đo lường độ tương tự ngữ nghĩa thuật ngữ kỹ thuật theo ngữ cảnh")
-        self.geometry("1380x820")
-        self.minsize(1100, 680)
+        self.geometry("1440x860") # Mở rộng bề ngang để chứa thêm card
+        self.minsize(1200, 720)
         self.resizable(True, True)
         self.configure(bg=C_BG)
 
         self.df_current: pd.DataFrame = None
         self.file_status = "none"
         self._show_scores    = tk.BooleanVar(value=True)
-        self._selected_model = tk.StringVar(value=MODEL_CHOICES[0])
+        self._selected_model = tk.StringVar(value=MODEL_CHOICES[0] if MODEL_CHOICES else "")
 
         self._apply_theme()
         self._build_ui()
@@ -108,7 +112,7 @@ class App(tk.Tk):
 
         s.configure("TLabel",       background=C_BG,      foreground=C_TEXT,  font=FONT_UI)
         s.configure("H.TLabel",     background=C_SURFACE, foreground=C_TEXT,  font=FONT_BOLD)
-        s.configure("Muted.TLabel", background=C_BG,      foreground=C_TEXT3, font=FONT_CAP)
+        s.configure("Muted.TLabel", background=C_SURFACE, foreground=C_TEXT3, font=FONT_CAP)
         s.configure("Cap.TLabel",   background=C_SURFACE, foreground=C_TEXT3, font=FONT_CAP)
         s.configure("Num.TLabel",   background=C_SURFACE, foreground=C_BLUE,  font=FONT_NUM)
         s.configure("Green.TLabel", background=C_SURFACE, foreground=C_GREEN, font=FONT_NUM)
@@ -202,9 +206,6 @@ class App(tk.Tk):
         tk.Label(hdr, text="Đo lường độ tương tự ngữ nghĩa thuật ngữ kỹ thuật theo ngữ cảnh",
                  bg=C_NAVY, fg=C_WHITE,
                  font=("Segoe UI Semibold", 13)).pack(side="left")
-        # tk.Label(hdr, text="NLP · PhoBERT · BERT · ELMo",
-        #          bg=C_NAVY, fg="#6b8ec4",
-                #  font=("Segoe UI", 9)).pack(side="left", padx=12)
         tk.Label(hdr,
                  text="Nguyễn Viết Huy & Hoàng Thanh Chiến  ·  ĐHKT-KT Công Nghiệp",
                  bg=C_NAVY, fg="#6b8ec4",
@@ -236,7 +237,7 @@ class App(tk.Tk):
         )
         self.cb_models.pack(side="left", padx=2)
         self.cb_models.bind("<<ComboboxSelected>>", self._on_model_change)
-        self._model_badge = tk.Label(tb_i, text=MODEL_CHOICES[0],
+        self._model_badge = tk.Label(tb_i, text=MODEL_CHOICES[0] if MODEL_CHOICES else "",
                                       bg=C_BLUE_L, fg=C_BLUE,
                                       font=("Segoe UI Semibold", 8),
                                       padx=6, pady=2)
@@ -267,17 +268,48 @@ class App(tk.Tk):
                          command=self._toggle_score_cols
                          ).pack(side="left", padx=6)
 
-        # ── STAT CARDS ──────────────────────────
-        cards = tk.Frame(self, bg=C_BG)
-        cards.pack(fill="x", padx=12, pady=(10, 6))
+        # ── STAT CARDS (Grid Layout) ─────────────
+        cards_wrap = tk.Frame(self, bg=C_BG)
+        cards_wrap.pack(fill="x", padx=12, pady=(10, 6))
 
-        self._card_pearson  = self._make_card(cards, "Pearson  r",  "—", "Green.TLabel")
-        self._card_spearman = self._make_card(cards, "Spearman ρ", "—", "Amber.TLabel")
-        self._card_samples  = self._make_card(cards, "Tổng mẫu",   "—", "Num.TLabel")
-        self._card_model    = self._make_card(cards, "Mô hình",    MODEL_CHOICES[0], "H.TLabel")
-        for c in [self._card_pearson, self._card_spearman,
-                  self._card_samples, self._card_model]:
-            c.pack(side="left", padx=(0, 8))
+        # Khởi tạo các thẻ
+        self._card_model    = self._make_card(cards_wrap, "Mô hình", MODEL_CHOICES[0] if MODEL_CHOICES else "", "H.TLabel")
+        self._card_samples  = self._make_card(cards_wrap, "Tổng mẫu", "—", "Num.TLabel")
+        
+        self._card_pearson    = self._make_card(cards_wrap, "Pearson (r)", "—", "Green.TLabel")
+        self._card_p_pearson  = self._make_card(cards_wrap, "p-value (P)", "—", "Muted.TLabel")
+        self._card_mae        = self._make_card(cards_wrap, "MAE", "—", "Amber.TLabel")
+
+        self._card_spearman   = self._make_card(cards_wrap, "Spearman (ρ)", "—", "Green.TLabel")
+        self._card_p_spearman = self._make_card(cards_wrap, "p-value (S)", "—", "Muted.TLabel")
+        self._card_rmse       = self._make_card(cards_wrap, "RMSE", "—", "Amber.TLabel")
+
+        self._card_kendall    = self._make_card(cards_wrap, "Kendall (τ)", "—", "Green.TLabel")
+        self._card_p_kendall  = self._make_card(cards_wrap, "p-value (K)", "—", "Muted.TLabel")
+        self._card_r2         = self._make_card(cards_wrap, "R²", "—", "Green.TLabel")
+
+        # Bố trí Grid cho thẻ (2 hàng)
+        # Cột 0: Model | Cột 1: Samples | Cột 2: Pearson | Cột 3: Spearman | Cột 4: Kendall | Cột 5: Errors & R2
+        self._card_model.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=(0, 6), pady=2)
+        self._card_samples.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(0, 6), pady=2)
+
+        self._card_pearson.grid(row=0, column=2, sticky="nsew", padx=(0, 6), pady=2)
+        self._card_p_pearson.grid(row=1, column=2, sticky="nsew", padx=(0, 6), pady=2)
+
+        self._card_spearman.grid(row=0, column=3, sticky="nsew", padx=(0, 6), pady=2)
+        self._card_p_spearman.grid(row=1, column=3, sticky="nsew", padx=(0, 6), pady=2)
+
+        self._card_kendall.grid(row=0, column=4, sticky="nsew", padx=(0, 6), pady=2)
+        self._card_p_kendall.grid(row=1, column=4, sticky="nsew", padx=(0, 6), pady=2)
+
+        self._card_mae.grid(row=0, column=5, sticky="nsew", padx=(0, 6), pady=2)
+        self._card_rmse.grid(row=1, column=5, sticky="nsew", padx=(0, 6), pady=2)
+
+        self._card_r2.grid(row=0, column=6, rowspan=2, sticky="nsew", padx=(0, 6), pady=2)
+
+        # Cho phép các cột co giãn đều
+        for i in range(7):
+            cards_wrap.columnconfigure(i, weight=1)
 
         # ── PROGRESS ────────────────────────────
         self._prog_frame = tk.Frame(self, bg=C_BG)
@@ -348,7 +380,7 @@ class App(tk.Tk):
     def _make_card(self, parent, caption, value, val_style):
         frame = tk.Frame(parent, bg=C_SURFACE,
                          highlightbackground=C_BORDER, highlightthickness=1)
-        frame.configure(padx=16, pady=10)
+        frame.configure(padx=16, pady=6)
         tk.Label(frame, text=caption, bg=C_SURFACE,
                  fg=C_TEXT3, font=FONT_CAP).pack(anchor="w")
         val = ttk.Label(frame, text=value, style=val_style)
@@ -422,8 +454,11 @@ class App(tk.Tk):
                 self.file_status = "raw"
                 self._lbl_file.configure(text=fname, fg=C_TEXT)
                 self._log(f"→ File dữ liệu: {fname}  ({n:,} mẫu)")
-                self._set_card(self._card_pearson,  "—")
-                self._set_card(self._card_spearman, "—")
+                # Reset metrics
+                for c in [self._card_pearson, self._card_p_pearson, self._card_mae,
+                          self._card_spearman, self._card_p_spearman, self._card_rmse,
+                          self._card_kendall, self._card_p_kendall, self._card_r2]:
+                    self._set_card(c, "—")
 
             self._set_card(self._card_samples, f"{n:,}")
             self._populate_table(df)
@@ -512,7 +547,7 @@ class App(tk.Tk):
     def _open_compare_dialog(self):
         dlg = tk.Toplevel(self)
         dlg.title("So sánh mô hình")
-        dlg.geometry("580x320")
+        dlg.geometry("620x360")
         dlg.configure(bg=C_BG)
         dlg.transient(self)
         dlg.grab_set()
@@ -525,9 +560,12 @@ class App(tk.Tk):
                  bg=C_NAVY, fg=C_WHITE,
                  font=("Segoe UI Semibold", 11)).pack(side="left", padx=12, pady=8)
 
-        tk.Label(dlg,
+        content = tk.Frame(dlg, bg=C_BG)
+        content.pack(fill="both", expand=True, padx=20, pady=12)
+
+        tk.Label(content,
                  text="Chọn file kết quả đã đánh giá cho từng mô hình (ít nhất 1 file)",
-                 bg=C_BG, fg=C_TEXT2, font=FONT_UI).pack(pady=(16, 10))
+                 bg=C_BG, fg=C_TEXT2, font=FONT_UI).grid(row=0, column=0, columnspan=3, pady=(0, 16), sticky="w")
 
         paths = {m: tk.StringVar() for m in ["PhoBERT", "mBERT", "XMLRoBERTa"]}
 
@@ -539,53 +577,46 @@ class App(tk.Tk):
             if p:
                 paths[model_name].set(p)
 
-        # Sử dụng Frame chứa Grid để căn chỉnh đồng đều các thành phần
-        form_frame = tk.Frame(dlg, bg=C_BG)
-        form_frame.pack(fill="x", padx=30, pady=5)
-        form_frame.columnconfigure(1, weight=1) # Cho phép ô Entry co giãn
-
+        # Sử dụng Grid Layout cho thẳng hàng
         for i, model in enumerate(["PhoBERT", "mBERT", "XMLRoBERTa"]):
             fg, bg = MODEL_COLORS.get(model, (C_BLUE, C_BLUE_L))
             
-            # Badge Tên Mô hình (Cố định width để thẳng hàng)
-            tk.Label(form_frame, text=f"{model}",
-                     bg=bg, fg=fg, width=12,
-                     font=("Segoe UI Semibold", 8),
-                     padx=4, pady=2).grid(row=i, column=0, sticky="w", padx=(0, 10), pady=6)
+            lbl = tk.Label(content, text=f"  {model}  ", bg=bg, fg=fg,
+                           font=("Segoe UI Semibold", 8), padx=4, pady=2)
+            lbl.grid(row=i+1, column=0, pady=6, sticky="w")
             
-            # Ô chứa đường dẫn file
-            ttk.Entry(form_frame, textvariable=paths[model],
-                      state="readonly").grid(row=i, column=1, sticky="ew", padx=(0, 10), pady=6)
+            ent = ttk.Entry(content, textvariable=paths[model], state="readonly", width=45)
+            ent.grid(row=i+1, column=1, padx=10, pady=6, sticky="we")
             
-            # Nút chọn file
-            ttk.Button(form_frame, text="Chọn", style="Ghost.TButton", width=8,
-                       command=lambda m=model: _browse(m)).grid(row=i, column=2, sticky="e", pady=6)
+            btn = ttk.Button(content, text="Chọn", style="Ghost.TButton",
+                             command=lambda m=model: _browse(m))
+            btn.grid(row=i+1, column=2, pady=6)
+
+        content.columnconfigure(1, weight=1)
 
         def _draw():
             selected = {n: p.get() for n, p in paths.items() if p.get()}
             if not selected:
-                messagebox.showwarning("Cảnh báo", "Vui lòng chọn ít nhất 1 file.", parent=dlg)
+                messagebox.showwarning("Cảnh báo", "Chọn ít nhất 1 file.", parent=dlg)
                 return
-            
             results_dfs = {}
             for name, p in selected.items():
                 try:
                     df = pd.read_csv(p) if p.endswith(".csv") else pd.read_excel(p)
                     if "model_score" not in df.columns:
-                        messagebox.showerror("Lỗi",
-                            f"File {name} thiếu cột 'model_score'!", parent=dlg)
+                        messagebox.showerror("Lỗi", f"File {name} thiếu cột 'model_score'!", parent=dlg)
                         return
                     results_dfs[name] = df
                 except Exception as e:
                     messagebox.showerror("Lỗi", f"Lỗi đọc file {name}: {e}", parent=dlg)
                     return
             
-            # BẢN VÁ LỖI: Tắt cửa sổ dialog này đi trước khi bật Matplotlib lên
+            # Đóng dialog trước khi gọi đồ thị để tránh lỗi hiển thị chồng lấp Matplotlib
             dlg.destroy()
             show_multi_model_comparison_plot(self, results_dfs)
 
-        ttk.Button(dlg, text="📊  Chạy so sánh & vẽ biểu đồ",
-                   style="Primary.TButton", command=_draw).pack(pady=(12, 0))
+        ttk.Button(content, text="📊  Chạy so sánh & vẽ biểu đồ",
+                   style="Primary.TButton", command=_draw).grid(row=4, column=0, columnspan=3, pady=(24, 0))
 
     # ──────────────────────────────────────────
     #  TABLE
@@ -629,5 +660,16 @@ class App(tk.Tk):
     def _update_stats(self, df):
         corr = compute_correlations(df)
         if corr:
-            self._set_card(self._card_pearson,  f"{corr['pearson_r']:.4f}")
-            self._set_card(self._card_spearman, f"{corr['spearman_r']:.4f}")
+            self._set_card(self._card_pearson,   f"{corr['pearson_r']}")
+            self._set_card(self._card_p_pearson, f"{corr['pearson_p']}")
+            self._set_card(self._card_mae,       f"{corr['mae']}")
+            
+            self._set_card(self._card_spearman,   f"{corr['spearman_r']}")
+            self._set_card(self._card_p_spearman, f"{corr['spearman_p']}")
+            self._set_card(self._card_rmse,       f"{corr['rmse']}")
+            
+            self._set_card(self._card_kendall,   f"{corr['kendall_tau']}")
+            self._set_card(self._card_p_kendall, f"{corr['kendall_p']}")
+            self._set_card(self._card_r2,        f"{corr['r2']}")
+            
+            self._set_card(self._card_samples,   f"{corr['n_valid']}")

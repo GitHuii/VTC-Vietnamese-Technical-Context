@@ -31,6 +31,7 @@ venv\Scripts\activate  # (Windows)
 # source venv/bin/activate (Linux/Mac)
 
 # 2. Cài đặt thư viện
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 

@@ -3,6 +3,10 @@ core/evaluator.py
 Pipeline đánh giá độ tương đồng ngữ nghĩa cho toàn bộ bộ dữ liệu.
 """
 import pandas as pd
+import numpy as np
+import pandas as pd
+from scipy.stats import pearsonr, spearmanr, kendalltau
+
 from scipy.stats import pearsonr, spearmanr
 from typing import Callable
 
@@ -53,18 +57,42 @@ def evaluate_dataset(
     return result
 
 def compute_correlations(df: pd.DataFrame) -> dict | None:
-    # (Giữ nguyên như cũ)
+    # 1. Kiểm tra cột dữ liệu
     if "avg_score" not in df.columns or "model_score" not in df.columns:
         return None
+        
+    # 2. Lọc dữ liệu hợp lệ (bỏ NaN)
     valid = df[["avg_score", "model_score"]].dropna()
     if len(valid) < 2:
         return None
-    p_r, p_p = pearsonr(valid["avg_score"],  valid["model_score"])
-    s_r, s_p = spearmanr(valid["avg_score"], valid["model_score"])
+        
+    y_true = valid["avg_score"].values
+    y_pred = valid["model_score"].values
+
+    # 3. Tính toán Hệ số tương quan & p-value
+    p_r, p_p = pearsonr(y_true, y_pred)
+    s_r, s_p = spearmanr(y_true, y_pred)
+    k_t, k_p = kendalltau(y_true, y_pred)
+
+    # 4. Tính toán Sai số (MAE, RMSE)
+    mae = np.mean(np.abs(y_true - y_pred))
+    rmse = np.sqrt(np.mean((y_true - y_pred)**2))
+
+    # 5. Tính Hệ số xác định (R²)
+    ss_res = np.sum((y_true - y_pred)**2)
+    ss_tot = np.sum((y_true - np.mean(y_true))**2)
+    r2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0.0
+
+    # Trả về toàn bộ kết quả đã làm tròn 4 chữ số thập phân
     return {
-        "pearson_r" : round(float(p_r), 4),
-        "pearson_p" : round(float(p_p), 4),
-        "spearman_r": round(float(s_r), 4),
-        "spearman_p": round(float(s_p), 4),
-        "n_valid"   : len(valid),
+        "pearson_r"  : round(float(p_r), 4),
+        "pearson_p"  : round(float(p_p), 4),
+        "spearman_r" : round(float(s_r), 4),
+        "spearman_p" : round(float(s_p), 4),
+        "kendall_tau": round(float(k_t), 4),
+        "kendall_p"  : round(float(k_p), 4),
+        "mae"        : round(float(mae), 4),
+        "rmse"       : round(float(rmse), 4),
+        "r2"         : round(float(r2), 4),
+        "n_valid"    : len(valid),
     }

@@ -21,5 +21,3 @@ env/
 .DS_Store?
 Thumbs.db
 ehthumbs.db
-*.jar
-*.class

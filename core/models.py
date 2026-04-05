@@ -149,7 +149,8 @@ class XLMRoBERTaModel(BaseModel):
         try:
             from transformers import AutoTokenizer, AutoModel
             self.tokenizer = AutoTokenizer.from_pretrained(key)
-            self.model = AutoModel.from_pretrained(key, output_hidden_states=True).to(self.device)
+            # Xóa output_hidden_states=True vì chỉ cần lấy lớp cuối
+            self.model = AutoModel.from_pretrained(key).to(self.device)
             self.model.eval()
             _model_cache[key] = (self.tokenizer, self.model)
             log_fn(f"[XLM-R] Tải xong: {key}")
@@ -165,9 +166,8 @@ class XLMRoBERTaModel(BaseModel):
         with torch.no_grad():
             outputs = self.model(**inputs)
 
-        # Trung bình 4 lớp cuối của XLM-R
-        all_layers = outputs.hidden_states
-        hidden = torch.stack(all_layers[-4:]).mean(dim=0)[0]
+        # Chỉ lấy lớp ẩn cuối cùng như bình thường
+        hidden = outputs.last_hidden_state[0]
 
         if target_word:
             encoding = self.tokenizer(

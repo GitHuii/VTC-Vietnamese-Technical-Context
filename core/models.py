@@ -1,109 +1,71 @@
 """
 core/models.py
 Định nghĩa các lớp mô hình học sâu dùng để trích xuất vector ngữ cảnh.
-Cập nhật: Chỉ áp dụng trung bình 4 lớp cuối cho PhoBERT-Large để sửa lỗi phân bố điểm.
-PhoBERT-Base và mBERT vẫn giữ nguyên cách lấy lớp cuối cùng.
+Cập nhật: Hỗ trợ tự động chạy GPU (CUDA) và tích hợp XLM-RoBERTa.
 """
-
+import torch
 import numpy as np
 from core.segmenter import segment_text, get_segmenter
 
-# ── Cache toàn cục: { variant_key: (tokenizer, model) } ──────
 _model_cache: dict = {}
 
-
-# ══════════════════════════════════════════════
-#  LỚP CƠ SỞ
-# ══════════════════════════════════════════════
-
 class BaseModel:
-    """Interface chung cho tất cả các mô hình."""
-
     def load(self, log_fn=print):
         raise NotImplementedError
-
     def get_vector(self, sentence: str, target_word: str) -> np.ndarray:
         raise NotImplementedError
 
-
-# ══════════════════════════════════════════════
-#  HÀM TÌM TOKEN MỤC TIÊU
-# ══════════════════════════════════════════════
-
 def _find_target_span(all_tokens: list, target_tokens: list):
-    """
-    Tìm vị trí bắt đầu của target_tokens trong all_tokens bằng
-    cửa sổ trượt với ngưỡng overlap 60%.
-    Trả về (start, k) hoặc None nếu không tìm thấy.
-    """
+    # (Giữ nguyên như cũ)
     k = len(target_tokens)
-    if k == 0:
-        return None
+    if k == 0: return None
     best_start, best_score = None, 0.0
     for i in range(len(all_tokens) - k + 1):
-        score = sum(
-            1 for a, b in zip(all_tokens[i:i+k], target_tokens)
-            if a.lower() == b.lower()
-        ) / k
+        score = sum(1 for a, b in zip(all_tokens[i:i+k], target_tokens) if a.lower() == b.lower()) / k
         if score > best_score:
             best_score, best_start = score, i
     return (best_start, k) if best_score >= 0.6 else None
 
-
 # ══════════════════════════════════════════════
-#  PHOBERT (BASE & LARGE)
+#  PHOBERT-BASE
 # ══════════════════════════════════════════════
-
 class PhoBERTModel(BaseModel):
     def __init__(self, variant: str = "vinai/phobert-base"):
         self.variant   = variant
         self.tokenizer = None
         self.model     = None
+        self.device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self, log_fn=print):
         key = self.variant
         if key in _model_cache:
             self.tokenizer, self.model = _model_cache[key]
-            log_fn(f"[PhoBERT] Dùng lại model đã tải: {key}")
+            log_fn(f"[PhoBERT] Dùng lại model trên {self.device}: {key}")
         else:
-            log_fn(f"[PhoBERT] Đang tải {key} ...")
+            log_fn(f"[PhoBERT] Đang tải {key} lên {self.device} ...")
             try:
                 from transformers import AutoTokenizer, AutoModel
                 self.tokenizer = AutoTokenizer.from_pretrained(key)
-                
-                # CHỈ SỬA LARGE: Kích hoạt output_hidden_states cho bản Large
-                is_large = "large" in key.lower()
-                self.model = AutoModel.from_pretrained(
-                    key, 
-                    output_hidden_states=is_large
-                )
-                
+                self.model = AutoModel.from_pretrained(key).to(self.device)
                 self.model.eval()
                 _model_cache[key] = (self.tokenizer, self.model)
-                log_fn(f"[PhoBERT] Tải xong: {key}")
+                log_fn(f"[PhoBERT] Tải xong trên {self.device}: {key}")
             except Exception as e:
                 raise RuntimeError(f"Không thể tải PhoBERT ({key}): {e}")
 
-        # Khởi tạo singleton segmenter
         get_segmenter(log_fn=log_fn)
 
     def get_vector(self, sentence: str, target_word: str) -> np.ndarray:
-        import torch
-
-        # Bước 1: tách từ câu ngữ cảnh
         segmented = segment_text(sentence)
-
-        # Bước 2: tokenize và lấy hidden states
         inputs = self.tokenizer(
             segmented, return_tensors="pt",
             truncation=True, max_length=256, padding=True
-        )
+        ).to(self.device) # <-- Đẩy input lên GPU
         
         with torch.no_grad():
             outputs = self.model(**inputs)
             hidden = outputs.last_hidden_state[0]
 
-        # Bước 3: tìm span của từ mục tiêu
         if target_word:
             all_tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
             target_segmented = segment_text(target_word.lower())
@@ -112,42 +74,34 @@ class PhoBERTModel(BaseModel):
             span = _find_target_span(all_tokens, target_tokens)
             if span is not None:
                 start, k = span
-                # v(w, C) = (1/k) × Σ h_i
-                return hidden[start: start + k].mean(dim=0).numpy()
+                # <-- Kéo về CPU trước khi sang Numpy
+                return hidden[start: start + k].mean(dim=0).cpu().numpy() 
 
-        # Fallback: mean pooling bỏ [CLS] và [SEP]
-        return hidden[1:-1].mean(dim=0).numpy()
-
+        return hidden[1:-1].mean(dim=0).cpu().numpy()
 
 # ══════════════════════════════════════════════
 #  BERT MULTILINGUAL
 # ══════════════════════════════════════════════
-
 class BERTMultilingualModel(BaseModel):
-    """
-    BERT Multilingual Cased — bert-base-multilingual-cased.
-    GIỮ NGUYÊN: Lấy lớp cuối cùng (last_hidden_state).
-    """
-
     VARIANT = "bert-base-multilingual-cased"
 
     def __init__(self):
         self.tokenizer = None
         self.model     = None
+        self.device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self, log_fn=print):
         key = self.VARIANT
         if key in _model_cache:
             self.tokenizer, self.model = _model_cache[key]
-            log_fn("[mBERT] Dùng lại model đã tải.")
+            log_fn(f"[mBERT] Dùng lại model trên {self.device}")
             return
 
-        log_fn("[mBERT] Đang tải bert-base-multilingual-cased ...")
+        log_fn(f"[mBERT] Đang tải bert-base-multilingual-cased lên {self.device}...")
         try:
             from transformers import AutoTokenizer, AutoModel
             self.tokenizer = AutoTokenizer.from_pretrained(key)
-            # mBERT giữ nguyên, không cần output_hidden_states
-            self.model     = AutoModel.from_pretrained(key)
+            self.model     = AutoModel.from_pretrained(key).to(self.device)
             self.model.eval()
             _model_cache[key] = (self.tokenizer, self.model)
             log_fn("[mBERT] Tải xong.")
@@ -155,50 +109,47 @@ class BERTMultilingualModel(BaseModel):
             raise RuntimeError(f"Không thể tải mBERT: {e}")
 
     def get_vector(self, sentence: str, target_word: str) -> np.ndarray:
-        import torch
         inputs = self.tokenizer(
             sentence, return_tensors="pt",
             truncation=True, max_length=256, padding=True
-        )
+        ).to(self.device)
+        
         with torch.no_grad():
             outputs = self.model(**inputs)
-        
-        # Mặc định lấy lớp cuối cùng
         hidden = outputs.last_hidden_state[0]
 
         if target_word:
             all_tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
             target_tokens = self.tokenizer.tokenize(target_word)
-            
             span = _find_target_span(all_tokens, target_tokens)
             if span is not None:
                 start, k = span
-                return hidden[start: start + k].mean(dim=0).numpy()
+                return hidden[start: start + k].mean(dim=0).cpu().numpy()
 
-        return hidden[1:-1].mean(dim=0).numpy()
+        return hidden[1:-1].mean(dim=0).cpu().numpy()
+
+# ══════════════════════════════════════════════
+#  XLM-ROBERTA
+# ══════════════════════════════════════════════
 class XLMRoBERTaModel(BaseModel):
-    """
-    XLM-RoBERTa — facebook/xlm-roberta-base hoặc xlm-roberta-large.
-    Không cần tách từ (SentencePiece tokenizer xử lý trực tiếp văn bản thô).
-    """
-
     def __init__(self, variant: str = "xlm-roberta-base"):
         self.variant   = variant
         self.tokenizer = None
         self.model     = None
+        self.device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def load(self, log_fn=print):
         key = self.variant
         if key in _model_cache:
             self.tokenizer, self.model = _model_cache[key]
-            log_fn(f"[XLM-R] Dùng lại model đã tải: {key}")
+            log_fn(f"[XLM-R] Dùng lại model trên {self.device}: {key}")
             return
 
-        log_fn(f"[XLM-R] Đang tải {key} ...")
+        log_fn(f"[XLM-R] Đang tải {key} lên {self.device}...")
         try:
             from transformers import AutoTokenizer, AutoModel
             self.tokenizer = AutoTokenizer.from_pretrained(key)
-            self.model = AutoModel.from_pretrained(key, output_hidden_states=True)
+            self.model = AutoModel.from_pretrained(key, output_hidden_states=True).to(self.device)
             self.model.eval()
             _model_cache[key] = (self.tokenizer, self.model)
             log_fn(f"[XLM-R] Tải xong: {key}")
@@ -206,64 +157,52 @@ class XLMRoBERTaModel(BaseModel):
             raise RuntimeError(f"Không thể tải XLM-RoBERTa ({key}): {e}")
 
     def get_vector(self, sentence: str, target_word: str) -> np.ndarray:
-        import torch
-
         inputs = self.tokenizer(
             sentence, return_tensors="pt",
             truncation=True, max_length=256, padding=True
-        )
+        ).to(self.device)
+        
         with torch.no_grad():
             outputs = self.model(**inputs)
 
+        # Trung bình 4 lớp cuối của XLM-R
         all_layers = outputs.hidden_states
         hidden = torch.stack(all_layers[-4:]).mean(dim=0)[0]
 
         if target_word:
-    # Tìm vị trí target_word trong câu gốc bằng char offset
             encoding = self.tokenizer(
                 sentence, return_tensors="pt",
                 truncation=True, max_length=256,
                 padding=True, return_offsets_mapping=True
             )
-            offsets = encoding["offset_mapping"][0].tolist()  # [(start, end), ...]
+            offsets = encoding["offset_mapping"][0].tolist() 
             
-            # Tìm vị trí char của target_word trong câu
             target_lower   = target_word.lower()
             sentence_lower = sentence.lower()
             char_start = sentence_lower.find(target_lower)
             
             if char_start != -1:
                 char_end = char_start + len(target_lower)
-                
-                # Tìm token nào overlap với [char_start, char_end]
                 token_indices = [
                     i for i, (s, e) in enumerate(offsets)
                     if s < char_end and e > char_start and e > 0
                 ]
                 
                 if token_indices:
-                    hidden = torch.stack(outputs.hidden_states[-4:]).mean(dim=0)[0]
-                    return hidden[token_indices].mean(dim=0).numpy()
+                    return hidden[token_indices].mean(dim=0).cpu().numpy()
 
-        return hidden[1:-1].mean(dim=0).numpy()
+        return hidden[1:-1].mean(dim=0).cpu().numpy()
 
 # ══════════════════════════════════════════════
 #  FACTORY
 # ══════════════════════════════════════════════
-
 MODEL_REGISTRY = {
     "PhoBERT-Base"      : lambda: PhoBERTModel("vinai/phobert-base"),
-    # "PhoBERT-Large"     : lambda: PhoBERTModel("vinai/phobert-large"),
     "BERT-Multilingual" : BERTMultilingualModel,
-    "XLMRoBERTa-Base" :lambda: XLMRoBERTaModel("xlm-roberta-base"),
+    "XLMRoBERTa-Base"   : lambda: XLMRoBERTaModel("xlm-roberta-base"),
 }
 
-
 def create_model(model_name: str) -> BaseModel:
-    """Tạo instance mô hình theo tên."""
     if model_name not in MODEL_REGISTRY:
-        raise ValueError(
-            f"Mô hình '{model_name}' không hợp lệ. "
-            f"Chọn một trong: {list(MODEL_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Mô hình '{model_name}' không hợp lệ. Chọn một trong: {list(MODEL_REGISTRY.keys())}")
     return MODEL_REGISTRY[model_name]()

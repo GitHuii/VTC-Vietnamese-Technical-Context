@@ -527,9 +527,9 @@ class App(tk.Tk):
 
         tk.Label(dlg,
                  text="Chọn file kết quả đã đánh giá cho từng mô hình (ít nhất 1 file)",
-                 bg=C_BG, fg=C_TEXT2, font=FONT_UI).pack(pady=12)
+                 bg=C_BG, fg=C_TEXT2, font=FONT_UI).pack(pady=(16, 10))
 
-        paths = {m: tk.StringVar() for m in ["PhoBERT", "mBERT","XMLRoBERTa"]}
+        paths = {m: tk.StringVar() for m in ["PhoBERT", "mBERT", "XMLRoBERTa"]}
 
         def _browse(model_name):
             p = filedialog.askopenfilename(
@@ -539,24 +539,34 @@ class App(tk.Tk):
             if p:
                 paths[model_name].set(p)
 
-        for model in ["PhoBERT","mBERT","XMLRoBERTa"]:
-            row = tk.Frame(dlg, bg=C_BG)
-            row.pack(fill="x", padx=20, pady=4)
+        # Sử dụng Frame chứa Grid để căn chỉnh đồng đều các thành phần
+        form_frame = tk.Frame(dlg, bg=C_BG)
+        form_frame.pack(fill="x", padx=30, pady=5)
+        form_frame.columnconfigure(1, weight=1) # Cho phép ô Entry co giãn
+
+        for i, model in enumerate(["PhoBERT", "mBERT", "XMLRoBERTa"]):
             fg, bg = MODEL_COLORS.get(model, (C_BLUE, C_BLUE_L))
-            tk.Label(row, text=f"  {model}  ",
-                     bg=bg, fg=fg,
+            
+            # Badge Tên Mô hình (Cố định width để thẳng hàng)
+            tk.Label(form_frame, text=f"{model}",
+                     bg=bg, fg=fg, width=12,
                      font=("Segoe UI Semibold", 8),
-                     padx=4, pady=2).pack(side="left")
-            ttk.Entry(row, textvariable=paths[model],
-                      state="readonly", width=36).pack(side="left", padx=8)
-            ttk.Button(row, text="Chọn", style="Ghost.TButton",
-                       command=lambda m=model: _browse(m)).pack(side="left")
+                     padx=4, pady=2).grid(row=i, column=0, sticky="w", padx=(0, 10), pady=6)
+            
+            # Ô chứa đường dẫn file
+            ttk.Entry(form_frame, textvariable=paths[model],
+                      state="readonly").grid(row=i, column=1, sticky="ew", padx=(0, 10), pady=6)
+            
+            # Nút chọn file
+            ttk.Button(form_frame, text="Chọn", style="Ghost.TButton", width=8,
+                       command=lambda m=model: _browse(m)).grid(row=i, column=2, sticky="e", pady=6)
 
         def _draw():
             selected = {n: p.get() for n, p in paths.items() if p.get()}
             if not selected:
-                messagebox.showwarning("Cảnh báo", "Chọn ít nhất 1 file.", parent=dlg)
+                messagebox.showwarning("Cảnh báo", "Vui lòng chọn ít nhất 1 file.", parent=dlg)
                 return
+            
             results_dfs = {}
             for name, p in selected.items():
                 try:
@@ -569,10 +579,13 @@ class App(tk.Tk):
                 except Exception as e:
                     messagebox.showerror("Lỗi", f"Lỗi đọc file {name}: {e}", parent=dlg)
                     return
+            
+            # BẢN VÁ LỖI: Tắt cửa sổ dialog này đi trước khi bật Matplotlib lên
+            dlg.destroy()
             show_multi_model_comparison_plot(self, results_dfs)
 
         ttk.Button(dlg, text="📊  Chạy so sánh & vẽ biểu đồ",
-                   style="Primary.TButton", command=_draw).pack(pady=16)
+                   style="Primary.TButton", command=_draw).pack(pady=(12, 0))
 
     # ──────────────────────────────────────────
     #  TABLE

@@ -1,14 +1,7 @@
 """
 core/evaluator.py
 Pipeline đánh giá độ tương đồng ngữ nghĩa cho toàn bộ bộ dữ liệu.
-
-Quy trình (mục 2.5 tài liệu nghiên cứu):
-  1. Chuẩn hóa văn bản → tách từ RDRSegmenter → trích xuất vector từ mục tiêu
-  2. Tính Cosine Similarity
-  3. Quy đổi: score_model = cos(u, v) × 10  (mục 2.5.5)
-  4. Tính Pearson / Spearman (avg_score, model_score)
 """
-
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 from typing import Callable
@@ -22,17 +15,6 @@ def evaluate_dataset(
     model: BaseModel,
     log_fn: Callable[[str], None] = print,
 ) -> pd.DataFrame:
-    """
-    Duyệt toàn bộ bộ dữ liệu, tính model_score cho từng mẫu.
-
-    Tham số:
-        df     : DataFrame với các cột context1, context2, avg_score, ...
-        model  : instance mô hình đã được load()
-        log_fn : hàm ghi log (print hoặc callback UI)
-
-    Trả về:
-        DataFrame gốc đã thêm cột raw_cosine và model_score.
-    """
     raw_cosines  = []
     model_scores = []
     total = len(df)
@@ -52,6 +34,8 @@ def evaluate_dataset(
             vec2 = model.get_vector(sent2, target2 or "")
             cos  = cosine_similarity(vec1, vec2)
             raw_cosines.append(cos)
+            
+            # Sử dụng trực tiếp hàm quy đổi, không qua Min-Max Scaling
             model_scores.append(scale_cos_to_10(cos))
         except Exception as e:
             log_fn(f"  [!] Lỗi tại mẫu {idx}: {e}")
@@ -63,28 +47,13 @@ def evaluate_dataset(
             log_fn(f"  Tiến độ: {cur}/{total}")
 
     result = df.copy()
-    result["raw_cosine"]  = raw_cosines   # cosine thô để debug/phân tích
+    result["raw_cosine"]  = raw_cosines
     result["model_score"] = model_scores
-    valid = [(i, s) for i, s in enumerate(model_scores) if s is not None]
-    if valid:
-        indices, scores = zip(*valid)
-        s_min = min(scores)
-        s_max = max(scores)
-        if s_max > s_min:  # tránh chia 0
-            scaled = [None] * len(model_scores)
-            for i, s in valid:
-                scaled[i] = round((s - s_min) / (s_max - s_min) * 10, 4)
-            result["model_score"] = scaled
 
     return result
 
-
 def compute_correlations(df: pd.DataFrame) -> dict | None:
-    """
-    Tính Pearson và Spearman giữa avg_score (con người) và model_score.
-    Trả về dict với các key: pearson_r, pearson_p, spearman_r, spearman_p, n_valid.
-    Trả về None nếu không đủ dữ liệu hợp lệ.
-    """
+    # (Giữ nguyên như cũ)
     if "avg_score" not in df.columns or "model_score" not in df.columns:
         return None
     valid = df[["avg_score", "model_score"]].dropna()

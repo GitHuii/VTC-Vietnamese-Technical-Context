@@ -18,16 +18,16 @@ def show_statistical_plots_window(master_win: tk.Tk, df_result: pd.DataFrame):
 
     # CỬA SỔ 1: Mật độ
     win1 = tk.Toplevel(master_win)
-    win1.title("Biểu đồ Mật độ Tương đồng")
+    win1.title("Biểu Đồ Mật độ Tương đồng")
     fig1, ax1 = plt.subplots(figsize=(7, 5), dpi=100)
-    _draw_scatter_density(ax1, valid_df["avg_score"].values, valid_df["model_score"].values, "Phân tích 1 Mô hình")
+    _draw_scatter_density(ax1, valid_df["avg_score"].values, valid_df["model_score"].values, "Biểu Đồ Mật độ Tương Đồng")
     _embed_plot_to_tkinter(win1, fig1)
 
     # CỬA SỔ 2: Cột
     win2 = tk.Toplevel(master_win)
-    win2.title("Phân bố số lượng điểm")
+    win2.title("Biểu Đồ Phân Bố Điểm")
     fig2, ax2 = plt.subplots(figsize=(7, 5), dpi=100)
-    _draw_bar_distribution(ax2, valid_df["model_score"].values, "Thống kê điểm đánh giá")
+    _draw_bar_distribution(ax2, valid_df["model_score"].values, "Phân Bố Điểm Đánh Giá")
     _embed_plot_to_tkinter(win2, fig2)
 
 

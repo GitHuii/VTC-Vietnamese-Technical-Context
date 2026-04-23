@@ -645,7 +645,7 @@ class App(tk.Tk):
         for i, (_, row) in enumerate(df.iterrows()):
             tag = "even" if i % 2 == 0 else "odd"
             vals = [
-                f"{row[c]:.4f}" if isinstance(row[c], float) else row[c]
+                f"{row[c]:.2f}" if isinstance(row[c], float) else row[c]
                 for c in cols
             ]
             self._tree.insert("", "end", values=vals, tags=(tag,))

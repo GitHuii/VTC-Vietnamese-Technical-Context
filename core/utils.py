@@ -31,17 +31,13 @@ def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
 
 
 def scale_cos_to_10(cos_sim: float) -> float:
-    """
-    Quy đổi Cosine Similarity [-1, 1] về thang 0–10.
-    Mặc định sử dụng công thức biến đổi tuyến tính để bảo toàn hệ số tương quan.
-    """
     if cos_sim is None:
         return 0.0
 
     cos_val = float(cos_sim)
 
-    scaled_val = max(0.0, cos_val) * 10.0
+    scaled_val = max(0.00, cos_val)
 
-    scaled_val = max(0.0, min(10.0, scaled_val))
+    scaled_val = max(0.00, min(1.00, scaled_val))
     
     return round(scaled_val, 4)

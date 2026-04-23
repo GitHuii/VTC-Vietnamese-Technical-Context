@@ -131,11 +131,11 @@ def _draw_scatter_density(ax, x, y, title):
 
 
 def _draw_bar_distribution(ax, scores, title):
-    bins   = [0, 3.0, 6.0, 8.0, 10.01] 
-    labels = ["0-3", "3.1-6", "6.1-8", "8.1-10"]
+    bins   = [0.0, 0.30, 0.60, 0.80, 1.0] 
+    labels = ["0.00 - 0.30", "0.31 - 0.60", "0.61 - 0.80", "0.81 - 1.0"]
     colors = ['#f44336', '#ff9800', '#ffeb3b', '#4caf50'] # Đỏ, Cam, Vàng, Xanh
 
-    counts = pd.cut(scores, bins=bins, labels=labels, right=False).value_counts().sort_index()
+    counts = pd.cut(scores, bins=bins, labels=labels, include_lowest=True).value_counts().sort_index()
     x_bar = np.arange(len(counts))
     y_bar = counts.values
     

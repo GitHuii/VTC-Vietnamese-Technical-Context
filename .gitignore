@@ -1,23 +1,16 @@
+# Python cache
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
+
+# Virtual env
 venv/
 env/
 .venv/
-.env
-*.pt
-*.pth
-*.bin
-*.safetensors
-*.h5
-.huggingface/
-.cache/
+
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# OS
 .DS_Store
-.DS_Store?
 Thumbs.db
-ehthumbs.db

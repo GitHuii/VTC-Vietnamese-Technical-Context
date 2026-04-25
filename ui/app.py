@@ -1,7 +1,6 @@
 """
 ui/app.py
 Giao diện Tkinter — Light Research Dashboard Theme
-Khóa luận tốt nghiệp: Đánh giá Độ Tương Đồng Ngữ Nghĩa
 """
 
 import os
@@ -20,9 +19,6 @@ from core.models    import create_model, MODEL_REGISTRY
 from core.evaluator import evaluate_dataset, compute_correlations
 from ui.plotting    import show_statistical_plots_window, show_multi_model_comparison_plot
 
-# ══════════════════════════════════════════════
-#  PALETTE — Light Academic Research
-# ══════════════════════════════════════════════
 C_BG        = "#f5f7fa"
 C_SURFACE   = "#ffffff"
 C_SURFACE2  = "#eef1f6"
@@ -52,7 +48,7 @@ FONT_BOLD   = ("Segoe UI Semibold", 9)
 FONT_TITLE  = ("Segoe UI Semibold", 12)
 FONT_HEADER = ("Segoe UI Semibold", 10)
 FONT_MONO   = ("Consolas", 9)
-FONT_NUM    = ("Segoe UI Semibold", 16) # Giảm size xíu để vừa 9 ô
+FONT_NUM    = ("Segoe UI Semibold", 16)
 FONT_CAP    = ("Segoe UI", 8)
 
 SCORE_COLS    = [f"r{i}" for i in range(1, 11)]
@@ -72,10 +68,6 @@ MODEL_COLORS = {
     "ELMo":          (C_AMBER,  C_AMBER_L),
 }
 
-
-# ══════════════════════════════════════════════
-#  APP
-# ══════════════════════════════════════════════
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -94,9 +86,7 @@ class App(tk.Tk):
         self._build_ui()
         self._update_ui_states()
 
-    # ──────────────────────────────────────────
-    #  THEME
-    # ──────────────────────────────────────────
+    #  THEME_UI
     def _apply_theme(self):
         s = ttk.Style(self)
         s.theme_use("clam")
@@ -118,7 +108,6 @@ class App(tk.Tk):
         s.configure("Green.TLabel", background=C_SURFACE, foreground=C_GREEN, font=FONT_NUM)
         s.configure("Amber.TLabel", background=C_SURFACE, foreground=C_AMBER, font=FONT_NUM)
 
-        # Buttons
         s.configure("TButton",
                     background=C_SURFACE, foreground=C_TEXT,
                     bordercolor=C_BORDER, focuscolor=C_SURFACE,
@@ -152,7 +141,6 @@ class App(tk.Tk):
               background=[("active", C_SURFACE2)],
               foreground=[("active", C_TEXT)])
 
-        # Combobox
         s.configure("TCombobox",
                     fieldbackground=C_SURFACE, background=C_SURFACE,
                     foreground=C_TEXT, arrowcolor=C_TEXT2,
@@ -162,14 +150,12 @@ class App(tk.Tk):
               foreground=[("readonly", C_TEXT)],
               bordercolor=[("focus", C_BLUE)])
 
-        # Checkbutton
         s.configure("TCheckbutton",
                     background=C_BG, foreground=C_TEXT2, font=FONT_UI)
         s.map("TCheckbutton",
               background=[("active", C_BG)],
               foreground=[("active", C_TEXT)])
 
-        # Misc
         s.configure("TSeparator", background=C_BORDER)
         s.configure("TScrollbar",
                     background=C_SURFACE2, troughcolor=C_BG,
@@ -178,7 +164,6 @@ class App(tk.Tk):
                     troughcolor=C_SURFACE2, background=C_BLUE,
                     bordercolor=C_SURFACE2, lightcolor=C_BLUE, darkcolor=C_BLUE)
 
-        # Treeview
         s.configure("Treeview",
                     background=C_SURFACE, foreground=C_TEXT,
                     fieldbackground=C_SURFACE, rowheight=26,
@@ -192,11 +177,8 @@ class App(tk.Tk):
         s.map("Treeview.Heading",
               background=[("active", C_BORDER)])
 
-    # ──────────────────────────────────────────
-    #  BUILD UI
-    # ──────────────────────────────────────────
+    #  UI
     def _build_ui(self):
-        # ── HEADER ──────────────────────────────
         hdr = tk.Frame(self, bg=C_NAVY, height=56)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
@@ -211,7 +193,6 @@ class App(tk.Tk):
                  bg=C_NAVY, fg="#6b8ec4",
                  font=("Segoe UI", 8)).pack(side="right", padx=16)
 
-        # ── TOOLBAR ─────────────────────────────
         tb = tk.Frame(self, bg=C_SURFACE,
                       highlightbackground=C_BORDER, highlightthickness=1)
         tb.pack(fill="x")
@@ -268,11 +249,9 @@ class App(tk.Tk):
                          command=self._toggle_score_cols
                          ).pack(side="left", padx=6)
 
-        # ── STAT CARDS (Grid Layout) ─────────────
         cards_wrap = tk.Frame(self, bg=C_BG)
         cards_wrap.pack(fill="x", padx=12, pady=(10, 6))
 
-        # Khởi tạo các thẻ
         self._card_model    = self._make_card(cards_wrap, "Mô hình", MODEL_CHOICES[0] if MODEL_CHOICES else "", "H.TLabel")
         self._card_samples  = self._make_card(cards_wrap, "Tổng mẫu", "—", "Num.TLabel")
         
@@ -288,8 +267,6 @@ class App(tk.Tk):
         self._card_p_kendall  = self._make_card(cards_wrap, "p-value (K)", "—", "Muted.TLabel")
         self._card_r2         = self._make_card(cards_wrap, "R²", "—", "Green.TLabel")
 
-        # Bố trí Grid cho thẻ (2 hàng)
-        # Cột 0: Model | Cột 1: Samples | Cột 2: Pearson | Cột 3: Spearman | Cột 4: Kendall | Cột 5: Errors & R2
         self._card_model.grid(row=0, column=0, rowspan=2, sticky="nsew", padx=(0, 6), pady=2)
         self._card_samples.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(0, 6), pady=2)
 
@@ -307,11 +284,9 @@ class App(tk.Tk):
 
         self._card_r2.grid(row=0, column=6, rowspan=2, sticky="nsew", padx=(0, 6), pady=2)
 
-        # Cho phép các cột co giãn đều
         for i in range(7):
             cards_wrap.columnconfigure(i, weight=1)
 
-        # ── PROGRESS ────────────────────────────
         self._prog_frame = tk.Frame(self, bg=C_BG)
         self._prog_frame.pack(fill="x", padx=12, pady=(0, 4))
         self._prog_var = tk.DoubleVar(value=0)
@@ -323,7 +298,6 @@ class App(tk.Tk):
         self._prog_lbl = tk.Label(self._prog_frame, text="",
                                    bg=C_BG, fg=C_TEXT2, font=FONT_CAP)
 
-        # ── TABLE ───────────────────────────────
         tbl_outer = tk.Frame(self, bg=C_BORDER, bd=1)
         tbl_outer.pack(fill="both", expand=True, padx=12, pady=(0, 4))
         tbl_frame = tk.Frame(tbl_outer, bg=C_SURFACE)
@@ -341,7 +315,6 @@ class App(tk.Tk):
         self._tree.tag_configure("odd",  background=C_SURFACE)
         self._tree.tag_configure("even", background="#f8fafc")
 
-        # ── LOG ─────────────────────────────────
         log_wrap = tk.Frame(self, bg=C_BORDER, bd=1)
         log_wrap.pack(fill="x", padx=12, pady=(0, 10))
         log_head = tk.Frame(log_wrap, bg=C_SURFACE2, height=22)
@@ -366,9 +339,7 @@ class App(tk.Tk):
         self._log_text.pack(side="left", fill="x", expand=True)
         log_sb.pack(side="right", fill="y")
 
-    # ──────────────────────────────────────────
     #  HELPERS
-    # ──────────────────────────────────────────
     def _make_tb_label(self, parent, text):
         tk.Label(parent, text=text, bg=C_SURFACE,
                  fg=C_TEXT3, font=("Segoe UI", 7)).pack(side="left", padx=(8, 2))
@@ -397,9 +368,7 @@ class App(tk.Tk):
         fg, bg = MODEL_COLORS.get(name, (C_BLUE, C_BLUE_L))
         self._model_badge.configure(text=name, bg=bg, fg=fg)
 
-    # ──────────────────────────────────────────
     #  STATE MACHINE
-    # ──────────────────────────────────────────
     def _update_ui_states(self):
         s = self.file_status
         self.btn_eval   .config(state="normal"   if s == "raw"                        else "disabled")
@@ -420,9 +389,7 @@ class App(tk.Tk):
             font=("Segoe UI Semibold", 8)
         )
 
-    # ──────────────────────────────────────────
-    #  LOG
-    # ──────────────────────────────────────────
+    #  Debug log
     def _log(self, msg: str):
         self._log_text.configure(state="normal")
         self._log_text.insert("end", msg + "\n")
@@ -430,9 +397,7 @@ class App(tk.Tk):
         self._log_text.configure(state="disabled")
         self.update_idletasks()
 
-    # ──────────────────────────────────────────
-    #  LOAD FILE
-    # ──────────────────────────────────────────
+    #  Đọc file dữ liệu
     def _load_file(self):
         path = filedialog.askopenfilename(
             filetypes=[("Dữ liệu", "*.xlsx *.xls *.csv")]
@@ -454,7 +419,6 @@ class App(tk.Tk):
                 self.file_status = "raw"
                 self._lbl_file.configure(text=fname, fg=C_TEXT)
                 self._log(f"→ File dữ liệu: {fname}  ({n:,} mẫu)")
-                # Reset metrics
                 for c in [self._card_pearson, self._card_p_pearson, self._card_mae,
                           self._card_spearman, self._card_p_spearman, self._card_rmse,
                           self._card_kendall, self._card_p_kendall, self._card_r2]:
@@ -467,9 +431,7 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror("Lỗi", str(e))
 
-    # ──────────────────────────────────────────
-    #  RUN EVAL
-    # ──────────────────────────────────────────
+    #  Chạy đánh giá
     def _run_eval(self):
         model_name = self._selected_model.get()
         self._log(f"\n{'─'*44}")
@@ -525,9 +487,7 @@ class App(tk.Tk):
         self._log("─" * 44)
         self._log("✓  Đánh giá hoàn tất\n")
 
-    # ──────────────────────────────────────────
-    #  EXPORT
-    # ──────────────────────────────────────────
+    #  Xuất file kết quả
     def _export(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".xlsx",
@@ -538,9 +498,7 @@ class App(tk.Tk):
             self._log(f"→ Đã xuất: {path}")
             messagebox.showinfo("Thành công", f"Đã lưu tại:\n{path}")
 
-    # ──────────────────────────────────────────
-    #  PLOTS
-    # ──────────────────────────────────────────
+    #  Biểu đồ
     def _show_plot_window(self):
         show_statistical_plots_window(self, self.df_current)
 
@@ -551,8 +509,6 @@ class App(tk.Tk):
         dlg.configure(bg=C_BG)
         dlg.transient(self)
         dlg.grab_set()
-
-        # Dialog header
         hdr = tk.Frame(dlg, bg=C_NAVY, height=40)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
@@ -577,7 +533,6 @@ class App(tk.Tk):
             if p:
                 paths[model_name].set(p)
 
-        # Sử dụng Grid Layout cho thẳng hàng
         for i, model in enumerate(["PhoBERT", "mBERT", "XMLRoBERTa"]):
             fg, bg = MODEL_COLORS.get(model, (C_BLUE, C_BLUE_L))
             
@@ -611,16 +566,13 @@ class App(tk.Tk):
                     messagebox.showerror("Lỗi", f"Lỗi đọc file {name}: {e}", parent=dlg)
                     return
             
-            # Đóng dialog trước khi gọi đồ thị để tránh lỗi hiển thị chồng lấp Matplotlib
             dlg.destroy()
             show_multi_model_comparison_plot(self, results_dfs)
 
         ttk.Button(content, text="📊  Chạy so sánh & vẽ biểu đồ",
                    style="Primary.TButton", command=_draw).grid(row=4, column=0, columnspan=3, pady=(24, 0))
 
-    # ──────────────────────────────────────────
     #  TABLE
-    # ──────────────────────────────────────────
     def _populate_table(self, df):
         cols = [c for c in ALL_COLUMNS if c in df.columns]
         hide = not self._show_scores.get()
@@ -654,9 +606,7 @@ class App(tk.Tk):
         if self.df_current is not None:
             self._populate_table(self.df_current)
 
-    # ──────────────────────────────────────────
-    #  STATS
-    # ──────────────────────────────────────────
+    #  Các chỉ số thống kê
     def _update_stats(self, df):
         corr = compute_correlations(df)
         if corr:

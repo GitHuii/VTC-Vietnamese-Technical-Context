@@ -11,8 +11,8 @@ import pandas as pd
 from scipy.stats import linregress, gaussian_kde, pearsonr, spearmanr
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
+# Hiển thị biểu đồ cho 1 model
 def show_statistical_plots_window(master_win: tk.Tk, df_result: pd.DataFrame):
-    """(Nút Xem Biểu Đồ Đơn) - Hiện 2 cửa sổ cho 1 model."""
     valid_df = df_result[["avg_score", "model_score"]].dropna()
     if len(valid_df) < 2: return
 
@@ -30,14 +30,8 @@ def show_statistical_plots_window(master_win: tk.Tk, df_result: pd.DataFrame):
     _draw_bar_distribution(ax2, valid_df["model_score"].values, "Phân Bố Điểm Đánh Giá")
     _embed_plot_to_tkinter(win2, fig2)
 
-
+# So sánh nhiều model cùng lúc
 def show_multi_model_comparison_plot(master_win: tk.Tk, results_dfs: dict):
-    """
-    (Nút So Sánh) - Hiển thị 3 cửa sổ:
-      1. Scatter Heatmaps (chung cửa sổ, nhiều subplots)
-      2. Bar Distributions (chung cửa sổ, nhiều subplots)
-      3. Pearson & Spearman Bar Chart (chung cửa sổ)
-    """
     models = list(results_dfs.keys())
     n = len(models)
 
@@ -45,7 +39,7 @@ def show_multi_model_comparison_plot(master_win: tk.Tk, results_dfs: dict):
     win_scatter = tk.Toplevel(master_win)
     win_scatter.title("So sánh: Biểu đồ Mật độ Tương đồng")
     fig_scat, axes_scat = plt.subplots(1, n, figsize=(5 * n, 5), dpi=100)
-    if n == 1: axes_scat = [axes_scat] # Normalize to list
+    if n == 1: axes_scat = [axes_scat]
 
     for i, model in enumerate(models):
         df = results_dfs[model].dropna(subset=["avg_score", "model_score"])
@@ -106,8 +100,7 @@ def show_multi_model_comparison_plot(master_win: tk.Tk, results_dfs: dict):
     _embed_plot_to_tkinter(win_corr, fig_corr)
 
 
-# ─── CÁC HÀM VẼ PHỤ TRỢ (Dùng chung để tránh lặp code) ───
-
+# Các hàm vẽ phụ trợ
 def _draw_scatter_density(ax, x, y, title):
     if len(x) < 2: return
     xy = np.vstack([x, y])
@@ -129,7 +122,7 @@ def _draw_scatter_density(ax, x, y, title):
     ax.legend(loc='upper left')
     ax.grid(True, linestyle='--', alpha=0.4)
 
-
+# Vẽ biểu đồ cột phân bố điểm
 def _draw_bar_distribution(ax, scores, title):
     bins   = [0.0, 0.30, 0.60, 0.80, 1.0] 
     labels = ["0.00 - 0.30", "0.31 - 0.60", "0.61 - 0.80", "0.81 - 1.0"]
@@ -149,7 +142,7 @@ def _draw_bar_distribution(ax, scores, title):
     ax.set_ylim(0, max(y_bar) * 1.15 if len(y_bar) > 0 else 10)
     ax.grid(True, axis='y', linestyle='--', alpha=0.4)
 
-
+# Nhúng biểu đồ vào Tkinter
 def _embed_plot_to_tkinter(win, fig):
     canvas = FigureCanvasTkAgg(fig, master=win)
     canvas.draw()

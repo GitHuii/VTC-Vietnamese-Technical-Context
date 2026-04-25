@@ -1,7 +1,6 @@
 """
 core/utils.py
-Các hàm tiện ích dùng chung: trích xuất từ mục tiêu, chuẩn hóa,
-tính Cosine Similarity và quy đổi điểm.
+Các hàm tiện ích dùng chung: trích xuất từ mục tiêu, chuẩn hóa, tính Cosine Similarity và quy đổi điểm.
 """
 
 import re

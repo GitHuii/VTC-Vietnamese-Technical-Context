@@ -38,8 +38,6 @@ def evaluate_dataset(
             vec2 = model.get_vector(sent2, target2 or "")
             cos  = cosine_similarity(vec1, vec2)
             raw_cosines.append(cos)
-            
-            # Sử dụng trực tiếp hàm quy đổi, không qua Min-Max Scaling
             model_scores.append(scale_cos_to_10(cos))
         except Exception as e:
             log_fn(f"  [!] Lỗi tại mẫu {idx}: {e}")
@@ -83,7 +81,6 @@ def compute_correlations(df: pd.DataFrame) -> dict | None:
     ss_tot = np.sum((y_true - np.mean(y_true))**2)
     r2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0.0
 
-    # Trả về toàn bộ kết quả đã làm tròn 4 chữ số thập phân
     return {
         "pearson_r"  : round(float(p_r), 4),
         "pearson_p"  : round(float(p_p), 4),

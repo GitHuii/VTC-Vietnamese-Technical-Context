@@ -1,7 +1,6 @@
 """
 core/models.py
 Định nghĩa các lớp mô hình học sâu dùng để trích xuất vector ngữ cảnh.
-Cập nhật: Hỗ trợ tự động chạy GPU (CUDA) và tích hợp XLM-RoBERTa.
 """
 import torch
 import numpy as np
@@ -16,7 +15,6 @@ class BaseModel:
         raise NotImplementedError
 
 def _find_target_span(all_tokens: list, target_tokens: list):
-    # (Giữ nguyên như cũ)
     k = len(target_tokens)
     if k == 0: return None
     best_start, best_score = None, 0.0
@@ -26,9 +24,7 @@ def _find_target_span(all_tokens: list, target_tokens: list):
             best_score, best_start = score, i
     return (best_start, k) if best_score >= 0.6 else None
 
-# ══════════════════════════════════════════════
 #  PHOBERT-BASE
-# ══════════════════════════════════════════════
 class PhoBERTModel(BaseModel):
     def __init__(self, variant: str = "vinai/phobert-base"):
         self.variant   = variant
@@ -60,7 +56,7 @@ class PhoBERTModel(BaseModel):
         inputs = self.tokenizer(
             segmented, return_tensors="pt",
             truncation=True, max_length=256, padding=True
-        ).to(self.device) # <-- Đẩy input lên GPU
+        ).to(self.device)
         
         with torch.no_grad():
             outputs = self.model(**inputs)
@@ -74,14 +70,11 @@ class PhoBERTModel(BaseModel):
             span = _find_target_span(all_tokens, target_tokens)
             if span is not None:
                 start, k = span
-                # <-- Kéo về CPU trước khi sang Numpy
                 return hidden[start: start + k].mean(dim=0).cpu().numpy() 
 
         return hidden[1:-1].mean(dim=0).cpu().numpy()
 
-# ══════════════════════════════════════════════
 #  BERT MULTILINGUAL
-# ══════════════════════════════════════════════
 class BERTMultilingualModel(BaseModel):
     VARIANT = "bert-base-multilingual-cased"
 
@@ -128,9 +121,7 @@ class BERTMultilingualModel(BaseModel):
 
         return hidden[1:-1].mean(dim=0).cpu().numpy()
 
-# ══════════════════════════════════════════════
 #  XLM-ROBERTA
-# ══════════════════════════════════════════════
 class XLMRoBERTaModel(BaseModel):
     def __init__(self, variant: str = "xlm-roberta-base"):
         self.variant   = variant
@@ -149,7 +140,6 @@ class XLMRoBERTaModel(BaseModel):
         try:
             from transformers import AutoTokenizer, AutoModel
             self.tokenizer = AutoTokenizer.from_pretrained(key)
-            # Xóa output_hidden_states=True vì chỉ cần lấy lớp cuối
             self.model = AutoModel.from_pretrained(key).to(self.device)
             self.model.eval()
             _model_cache[key] = (self.tokenizer, self.model)
@@ -166,7 +156,6 @@ class XLMRoBERTaModel(BaseModel):
         with torch.no_grad():
             outputs = self.model(**inputs)
 
-        # Chỉ lấy lớp ẩn cuối cùng như bình thường
         hidden = outputs.last_hidden_state[0]
 
         if target_word:
@@ -193,9 +182,7 @@ class XLMRoBERTaModel(BaseModel):
 
         return hidden[1:-1].mean(dim=0).cpu().numpy()
 
-# ══════════════════════════════════════════════
 #  FACTORY
-# ══════════════════════════════════════════════
 MODEL_REGISTRY = {
     "PhoBERT-Base"      : lambda: PhoBERTModel("vinai/phobert-base"),
     "BERT-Multilingual" : BERTMultilingualModel,

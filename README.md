@@ -5,16 +5,6 @@ Hệ thống sử dụng các mô hình ngôn ngữ lớn (Transformers) để �
 
 ---
 
-## 🚀 ĐIỂM NỔI BẬT VỀ KỸ THUẬT VÀ PHƯƠNG PHÁP NGHIÊN CỨU
-
-Hệ thống được thiết kế khắt khe theo các tiêu chuẩn báo cáo nghiên cứu khoa học:
-
-* **Tôn trọng tính toàn vẹn dữ liệu (No Min-Max Scaling):** Thay vì sử dụng Min-Max Scaling để ép điểm số dàn trải nhân tạo, hệ thống sử dụng quy đổi tuyến tính `max(0, cos) * 10`. Điều này cho phép làm nổi bật **đặc tính không gian vector gốc** của từng mô hình, hỗ trợ phát hiện các hiện tượng học thuật như *Anisotropy* (tính co cụm vector) thường gặp trên các mô hình như XLM-RoBERTa.
-* **Tự động nhận diện phần cứng (Auto GPU/CPU):** Code tự động chuyển đổi tính toán lên thiết bị hỗ trợ CUDA khi chạy môi trường có GPU, giúp gia tăng tốc độ trích xuất vector lên gấp 10 lần.
-* **Chiến lược Tokenize đa dạng:** Áp dụng `RDRSegmenter` cho dòng họ PhoBERT và xử lý `SentencePiece offset_mapping` trực tiếp cho XLM-RoBERTa, đảm bảo vector ngữ cảnh trích xuất luôn trùng khớp chính xác vị trí từ.
-
----
-
 ## 💻 YÊU CẦU HỆ THỐNG & CÀI ĐẶT
 
 | Thành phần     | Yêu cầu tối thiểu               |
@@ -48,7 +38,7 @@ Hệ thống hiện tại tích hợp 3 mô hình ngôn ngữ phổ biến nhằ
 3. **XLM-RoBERTa-Base (`xlm-roberta-base`):** Tính toán trung bình cộng 4 lớp cuối (Last 4-layer averaging). Đây là mô hình phục vụ báo cáo thực nghiệm về hiện tượng phân bố điểm co cụm trên các kiến trúc RoBERTa-based.
 
 **Công thức quy đổi điểm:**
-$$Score = \max(0, \cos(\vec{u}, \vec{v})) \times 10$$
+$$Score = \max(0, \cos(\vec{u}, \vec{v}))$$
 
 ---
 
